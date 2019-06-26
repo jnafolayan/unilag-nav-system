@@ -4,9 +4,12 @@ class Entity:
   " rendered onto the screen.
   """
   def __init__(self):
+    self.type = ''
     self.app = None
     self.mouse_over = False
     self.mouse_down = False
+    self.x = 0
+    self.y = 0
 
   def set_app(self, app):
     self.app = app
@@ -22,3 +25,9 @@ class Entity:
 
   def on_mouse_release(self):
     self.mouse_down = False
+
+  def update(self, dt, arcade):
+    pass
+
+  def draw(self, arcade):
+    pass

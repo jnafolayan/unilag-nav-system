@@ -16,6 +16,7 @@ class Node(Entity):
 
     self.x = x
     self.y = y
+    self.type = 'node'
     self.key = key
     self.cost = float('inf')
     self.neighbors = []

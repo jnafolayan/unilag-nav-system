@@ -1,7 +1,8 @@
 import arcade
-from Node import Node
-from findpath import find_path
 import math
+from Node import Node
+from Button import Button
+from findpath import find_path
 
 class App(arcade.Window):
   def __init__(self, options):
@@ -10,7 +11,7 @@ class App(arcade.Window):
     arcade.set_background_color(arcade.color.WHITE)
     self.options = options
     self.entities = []
-    self.nodeMap = {}
+    self.node_map = {}
     self.time = 0
 
     self.start_node = None
@@ -22,9 +23,11 @@ class App(arcade.Window):
     # camera vars
     self.view_x = 0
     self.view_y = 0
-    self.world_w = 0
-    self.world_h = 0
     self.view_target = None
+
+    # buttons
+    self.clear_btn = Button('RESET', 75, 40, (170,170,170,0.75), (0,0,0), 17, self.clear_search)
+    self.add_entity(self.clear_btn)
 
   def add_entity(self, obj):
     obj.set_app(self)
@@ -39,7 +42,7 @@ class App(arcade.Window):
       node = Node(key = key)
       if not start:
         start = node
-      self.nodeMap[key] = node
+      self.node_map[key] = node
       self.add_entity(node)
 
     start.x = options.screen_width / 2
@@ -53,16 +56,25 @@ class App(arcade.Window):
         weight, rotation = options.graph[key_a][key_b]
         node_a.connect(node_b, weight, options.path_length, rotation)
 
-    # get boundaries
-    max_y = -10
-    for node in self.entities:
-      if node.y > max_y:
-        max_y = node.y
-
-    self.world_h = max_y
-
   def get_node_by_key(self, key):
-    return self.nodeMap[key]
+    return self.node_map[key]
+
+  def clear_search(self, clear_terminals=True):
+    self.path = None
+
+    # clear previous node flags
+    for key in self.node_map:
+      node = self.node_map[key]
+      node.is_in_path = False
+      node.walked = False
+      node.is_terminal = False
+
+      if node.mouse_down:
+        node.on_mouse_release()
+
+    if clear_terminals:
+      self.start_node = None
+      self.end_node = None
 
   def start(self):
     arcade.run()
@@ -70,8 +82,13 @@ class App(arcade.Window):
   def on_draw(self):
     arcade.start_render()
 
-    for obj in self.entities:
-      obj.draw_connectors(arcade)
+    arcade.draw_lrtb_rectangle_filled(self.view_x, self.view_x + self.options.screen_width,
+                                      self.view_y + self.options.screen_height, self.view_y,
+                                      arcade.color.WHITE)
+
+    for key in self.node_map:
+      node = self.node_map[key]
+      node.draw_connectors(arcade)
 
     for obj in self.entities:
       obj.draw(arcade)
@@ -81,11 +98,7 @@ class App(arcade.Window):
       obj.update(dt, arcade)
 
     if self.start_node and self.end_node and not self.path:
-      # clear previous node flags
-      for obj in self.entities:
-        obj.is_in_path = False
-        obj.walked = False
-        obj.is_terminal = False
+      self.clear_search(False)
 
       self.path = find_path(self.start_node, self.end_node)
       self.path_cursor = -1
@@ -121,12 +134,18 @@ class App(arcade.Window):
                         self.view_x + self.options.screen_width - 1, 
                         self.view_y, 
                         self.view_y + self.options.screen_height - 1)
+    # gui
+    margin = 5
+    self.clear_btn.x = self.view_x + margin
+    self.clear_btn.y = self.view_y + margin
 
   def on_mouse_motion(self, x, y, dx, dy):
     x += self.view_x
     y += self.view_y
 
     for obj in self.entities:
+      if obj.type != 'node':
+        continue
       dist = math.sqrt((x - obj.x) ** 2 + (y - obj.y) ** 2)
       if dist < self.options.node['size']:
         obj.on_mouse_motion()
@@ -139,20 +158,28 @@ class App(arcade.Window):
     
     # clear flags
     for obj in self.entities:
-      dist = math.sqrt((x - obj.x) ** 2 + (y - obj.y) ** 2)
-      if dist <= self.options.node['size']:
-        if obj.mouse_down:
-          continue
-        obj.on_mouse_press()
-        if not self.start_node:
-          self.start_node = obj
-        elif not self.end_node:
-          self.end_node = obj
-      elif obj.mouse_down:
-        obj.on_mouse_release()
+      if obj.type == 'node':
+        dist = math.sqrt((x - obj.x) ** 2 + (y - obj.y) ** 2)
+        if dist <= self.options.node['size']:
+          if obj.mouse_down:
+            continue
+          obj.on_mouse_press()
+          if not self.start_node:
+            self.start_node = obj
+          elif not self.end_node:
+            self.end_node = obj
+        elif obj.mouse_down:
+          obj.on_mouse_release()
+      else:
+        if x >= obj.x and x <= obj.x + obj.width and y >= obj.y and y <= obj.y + obj.height:
+          if obj.mouse_down:
+            continue
+          obj.on_mouse_press()
+        elif obj.mouse_down:
+          obj.on_mouse_release()
 
   def on_key_press(self, key, modifiers):
-    speed = 50
+    speed = self.options.screen_width / 4
 
     if key == arcade.key.LEFT:
       self.view_x -= speed
