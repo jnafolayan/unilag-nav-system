@@ -35,16 +35,11 @@ class App(arcade.Window):
 
   def generate_nodes(self):
     options = self.options
-    start = None
 
-    # create the nodes
-    for key in options.nodes:
-      node = Node(key = key)
-      if not start:
-        start = node
-      self.node_map[key] = node
-      self.add_entity(node)
+    for key in options.main_nodes:
+      self.get_node_by_key(key)
 
+    start = self.get_node_by_key('Gate')
     start.x = options.screen_width / 2
     start.y = options.node['size'] * 2
 
@@ -57,6 +52,9 @@ class App(arcade.Window):
         node_a.connect(node_b, weight, options.path_length, rotation)
 
   def get_node_by_key(self, key):
+    if key not in self.node_map:
+      self.node_map[key] = Node(key=key)
+      self.add_entity(self.node_map[key])
     return self.node_map[key]
 
   def clear_search(self, clear_terminals=True):
@@ -115,12 +113,15 @@ class App(arcade.Window):
 
       if self.next_cursor_time <= 0:
         self.path_cursor += 1
-        self.next_cursor_time = 0.8
+        self.next_cursor_time = 0
         if self.path_cursor == len(self.path):
           self.path_cursor -= 1
         node = self.get_node_by_key(self.path[self.path_cursor])
         node.walked = True
+        
         self.view_target = node
+        if node == self.end_node:
+          self.view_target = None
 
     # update viewport
     if self.view_target:
